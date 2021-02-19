@@ -16,7 +16,8 @@ chown centos:apache /var/log/ansible.log
 ln -s /var/log/ansible.log /var/log/sandbox/ansible.log
 curl -s "$BUCKET_URI"/tungsten_fabric_sandbox.tar.gz -o /tmp/tungsten_fabric_sandbox.tar.gz
 tar -xzf /tmp/tungsten_fabric_sandbox.tar.gz -C /tmp
-curl -s "https://raw.githubusercontent.com/TheAshwanik/tungsten_sandbox/main/deploy_tf.sh" /tmp/sandbox/scripts/deploy_tf.sh
+curl -s "https://raw.githubusercontent.com/TheAshwanik/tungsten_sandbox/main/deploy_tf.sh" -o /tmp/sandbox/scripts/modified_deploy_tf.sh
+mv /tmp/sandbox/scripts/modified_deploy_tf.sh /tmp/sandbox/scripts/deploy_tf.sh
 cp -r /tmp/sandbox/site /var/www/html/sandbox
 cp -r /tmp/sandbox/scripts /opt/sandbox/scripts
 cp -f /tmp/sandbox/templates/ssl.conf /etc/httpd/conf.d/ssl.conf
