@@ -76,8 +76,8 @@ done
 
 echo "$(date +"%T %Z"): 5/7 Configure instances ... " >> $status_log
 
-sed -i '/    - python-pip/a\    - gcc\n    - python-devel\n    - libffi-devel' playbooks/roles/instance/tasks/install_software_Linux.yml
-sed -i 's/    name: docker-compose/    name:\n      - pip==9.0.3\n      - docker-compose==1.24.1\n      - bcrypt==3.1.7/' playbooks/roles/instance/tasks/install_software_Linux.yml
+sed -i '/    - python-pip/a\    - gcc\n    - python-devel\n    - libffi-devel\n- name: Upgrade pip\n  pip:\n    name:\n      - pip==9.0.3' playbooks/roles/instance/tasks/install_software_Linux.yml
+sed -i 's/    name: docker-compose/    name:\n      - docker-compose==1.24.1\n      - bcrypt==3.1.7/' playbooks/roles/instance/tasks/install_software_Linux.yml
 ansible-playbook -i inventory/ playbooks/configure_instances.yml
 
 K8S_MASTER_NODE_PROFILE=$(echo $AWS_MP | awk -F/ '{print $2}')
