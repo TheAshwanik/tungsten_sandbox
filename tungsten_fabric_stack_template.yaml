@@ -1,0 +1,508 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Tungsten Fabric Sandbox
+Parameters:
+  InstanceType:
+    Description: EC2 instance type, select cheaper or faster (Default = t2.xlarge)
+    Type: String
+    Default: t2.xlarge
+    AllowedValues:
+      - t2.large
+      - t2.xlarge
+      - t2.2xlarge
+  Password:
+    Description: Password to log in to Sandbox with user name 'admin' (at least 6 characters)
+    Type: String
+    NoEcho: 'true'
+    MinLength: '6'
+    AllowedPattern: ^[^"]*$
+    ConstraintDescription: Password must have at least 6 symbols and not contain '"'
+  KeyPair:
+    Description: The name of an EC2 Key Pair to allow SSH access to instances
+    Type: AWS::EC2::KeyPair::KeyName
+    MinLength: '1'
+    ConstraintDescription: Must be the name of an existing EC2 KeyPair
+  Build:
+    Description: You can use stable or latest version of the Tungsten Fabric (Default = stable)
+    Type: String
+    Default: stable
+    AllowedValues:
+      - stable
+      - latest
+
+Mappings:
+  Region2Image:
+    ap-northeast-1:
+      AMI: ami-8e8847f1
+    ap-northeast-2:
+      AMI: ami-bf9c36d1
+    ap-south-1:
+      AMI: ami-1780a878
+    ap-southeast-1:
+      AMI: ami-8e0205f2
+    ap-southeast-2:
+      AMI: ami-d8c21dba
+    ca-central-1:
+      AMI: ami-e802818c
+    eu-central-1:
+      AMI: ami-dd3c0f36
+    eu-west-1:
+      AMI: ami-3548444c
+    eu-west-2:
+      AMI: ami-00846a67
+    eu-west-3:
+      AMI: ami-262e9f5b
+    sa-east-1:
+      AMI: ami-cb5803a7
+    us-east-1:
+      AMI: ami-9887c6e7
+    us-east-2:
+      AMI: ami-9c0638f9
+    us-west-1:
+      AMI: ami-4826c22b
+    us-west-2:
+      AMI: ami-3ecc8f46
+
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 172.25.0.0/16
+      EnableDnsSupport: 'true'
+      EnableDnsHostnames: 'true'
+      Tags:
+        - Key: Name
+          Value: tf-sandbox-vpc
+    DependsOn:
+      - IAMUser
+  IGW:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: tf-sandbox-gw
+    DependsOn:
+      - IAMUser
+  IGWAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId:
+        Ref: VPC
+      InternetGatewayId:
+        Ref: IGW
+  RouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: VPC
+  RouteVPCAny:
+    Type: AWS::EC2::Route
+    DependsOn: IGWAttachment
+    Properties:
+      RouteTableId:
+        Ref: RouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:
+        Ref: IGW
+  MainSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 172.25.1.0/24
+      MapPublicIpOnLaunch: 'true'
+      VpcId:
+        Ref: VPC
+      Tags:
+        - Key: Name
+          Value: tf-sandbox-subnet
+  IngressSubnetFirst:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select
+        - 0
+        - !GetAZs
+          Ref: 'AWS::Region'
+      CidrBlock: 172.25.2.0/24
+      MapPublicIpOnLaunch: 'true'
+      VpcId:
+        Ref: VPC
+      Tags:
+        - Key: Name
+          Value: tf-sandbox-ingress-subnet-first
+        - Key:
+           Fn::Sub: kubernetes.io/cluster/${AWS::StackName}
+          Value: shared
+        - Key:  kubernetes.io/role/elb
+          Value: 1
+  IngressSubnetSecond:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select
+        - 1
+        - !GetAZs
+          Ref: 'AWS::Region'
+      CidrBlock: 172.25.3.0/24
+      MapPublicIpOnLaunch: 'true'
+      VpcId:
+        Ref: VPC
+      Tags:
+        - Key: Name
+          Value: tf-sandbox-ingress-subnet-second
+        - Key:
+            Fn::Sub: kubernetes.io/cluster/${AWS::StackName}
+          Value: shared
+        - Key:  kubernetes.io/role/elb
+          Value: 1
+  MainSubnetRouteTable:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: RouteTable
+      SubnetId:
+        Ref: MainSubnet
+  IngressSubnetFirstRouteTable:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: RouteTable
+      SubnetId:
+        Ref: IngressSubnetFirst
+  IngressSubnetSecondRouteTable:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: RouteTable
+      SubnetId:
+        Ref: IngressSubnetSecond
+  MasterNodeSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: tf security group
+      VpcId:
+        Ref: VPC
+      SecurityGroupIngress:
+        - CidrIp: 172.25.0.0/16
+          IpProtocol: "-1"
+        - CidrIp: 0.0.0.0/0
+          IpProtocol: tcp
+          FromPort: '22'
+          ToPort: '22'
+        - CidrIp: 0.0.0.0/0
+          IpProtocol: tcp
+          FromPort: '443'
+          ToPort: '443'
+        - CidrIp: 0.0.0.0/0
+          IpProtocol: tcp
+          FromPort: '80'
+          ToPort: '80'
+        - CidrIp: 0.0.0.0/0
+          IpProtocol: tcp
+          FromPort: '8143'
+          ToPort: '8143'
+        - CidrIp: 0.0.0.0/0
+          IpProtocol: tcp
+          FromPort: '8143'
+          ToPort: '8143'
+        - CidrIp: 0.0.0.0/0
+          IpProtocol: tcp
+          FromPort: '8443'
+          ToPort: '8443'
+      Tags:
+        - Key: Name
+          Value: tf-sandbox-sg
+  IAMUser:
+    Type: AWS::IAM::User
+    Properties:
+      Policies:
+        - PolicyName: IAMUserPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: STSPermissions
+                Action: sts:DecodeAuthorizationMessage
+                Effect: Allow
+                Resource: "*"
+              - Sid: IAMPermissionsUser
+                Action:
+                  - iam:ListAccessKeys
+                  - iam:DeleteAccessKey
+                  - iam:DeleteUser
+                  - iam:DeleteUserPolicy
+                Effect: Allow
+                Resource:
+                  Fn::Sub: arn:aws:iam::${AWS::AccountId}:user/${!aws:username}
+              - Sid: IAMPermissionsProfile
+                Action:
+                  - iam:DeleteInstanceProfile
+                  - iam:RemoveRoleFromInstanceProfile
+                Effect: Allow
+                Resource:
+                  Fn::Sub: arn:aws:iam::${AWS::AccountId}:instance-profile/${AWS::StackName}-*
+              - Sid: IAMPermissionsRole
+                Action:
+                  - iam:PassRole
+                  - iam:DeleteRole
+                  - iam:DeleteRolePolicy
+                Effect: Allow
+                Resource:
+                  Fn::Sub: arn:aws:iam::${AWS::AccountId}:role/${AWS::StackName}-*
+              - Sid: CloudFormationPermissions
+                Action: cloudformation:DeleteStack
+                Effect: Allow
+                Resource:
+                  Fn::Sub: arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${AWS::StackName}/*
+              - Sid: EC2Permissions
+                Action: ec2:*
+                Effect: Allow
+                Resource: "*"
+              - Sid: Elbv2Permissions
+                Action:
+                  - elasticloadbalancing:DeleteLoadBalancer
+                  - elasticloadbalancing:CreateLoadBalancer
+                  - elasticloadbalancing:DescribeTags
+                  - elasticloadbalancing:DescribeLoadBalancers
+                Effect: Allow
+                Resource: "*"
+  IAMUserKey:
+    Type: AWS::IAM::AccessKey
+    Properties:
+      UserName:
+        Ref: IAMUser
+  K8sMasterNodeRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      Path: "/"
+  K8SMasterRolePolicies:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: K8sMasterNodePolicy
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - ec2:*
+            Resource:
+              - "*"
+          - Effect: Allow
+            Action:
+              - elasticloadbalancing:*
+            Resource:
+              - "*"
+          - Effect: Allow
+            Action:
+              - route53:*
+            Resource:
+              - "*"
+          - Effect: Allow
+            Action:
+              - s3:*
+            Resource:
+              - arn:aws:s3:::kubernetes-*
+      Roles:
+        - !Ref K8sMasterNodeRole
+  K8sMasterNodeInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: "/"
+      Roles:
+        - !Ref K8sMasterNodeRole
+  K8sWorkerNodeRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      Path: "/"
+  K8SWorkerRolePolicies:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: K8sWorkerNodePolicy
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - ec2:Describe*
+              - ec2:AuthorizeSecurityGroupIngress
+              - ec2:CreateSecurityGroup
+              - ec2:CreateTags
+              - ec2:DeleteTags
+              - ec2:DeleteSecurityGroup
+              - ec2:ModifyInstanceAttribute
+              - ec2:ModifyNetworkInterfaceAttribute
+              - ec2:RevokeSecurityGroupIngress
+            Resource:
+              - "*"
+          - Effect: Allow
+            Action:
+              - ec2:AttachVolume
+            Resource:
+              - "*"
+          - Effect: Allow
+            Action:
+              - ec2:DetachVolume
+            Resource:
+              - "*"
+          - Effect: Allow
+            Action:
+              - route53:*
+            Resource:
+              - "*"
+          - Effect: Allow
+            Action:
+              - s3:*
+            Resource:
+              - arn:aws:s3:::kubernetes-*
+          - Effect: Allow
+            Action:
+              - elasticloadbalancing:AddListenerCertificates
+              - elasticloadbalancing:AddTags
+              - elasticloadbalancing:CreateListener
+              - elasticloadbalancing:CreateLoadBalancer
+              - elasticloadbalancing:CreateRule
+              - elasticloadbalancing:CreateTargetGroup
+              - elasticloadbalancing:DeleteListener
+              - elasticloadbalancing:DeleteLoadBalancer
+              - elasticloadbalancing:DeleteRule
+              - elasticloadbalancing:DeleteTargetGroup
+              - elasticloadbalancing:DeregisterTargets
+              - elasticloadbalancing:DescribeListenerCertificates
+              - elasticloadbalancing:DescribeListeners
+              - elasticloadbalancing:DescribeLoadBalancers
+              - elasticloadbalancing:DescribeLoadBalancerAttributes
+              - elasticloadbalancing:DescribeRules
+              - elasticloadbalancing:DescribeSSLPolicies
+              - elasticloadbalancing:DescribeTags
+              - elasticloadbalancing:DescribeTargetGroups
+              - elasticloadbalancing:DescribeTargetGroupAttributes
+              - elasticloadbalancing:DescribeTargetHealth
+              - elasticloadbalancing:ModifyListener
+              - elasticloadbalancing:ModifyLoadBalancerAttributes
+              - elasticloadbalancing:ModifyRule
+              - elasticloadbalancing:ModifyTargetGroup
+              - elasticloadbalancing:ModifyTargetGroupAttributes
+              - elasticloadbalancing:RegisterTargets
+              - elasticloadbalancing:RemoveListenerCertificates
+              - elasticloadbalancing:RemoveTags
+              - elasticloadbalancing:SetIpAddressType
+              - elasticloadbalancing:SetSecurityGroups
+              - elasticloadbalancing:SetSubnets
+              - elasticloadbalancing:SetWebACL
+            Resource: "*"
+          - Effect: Allow
+            Action:
+              - iam:CreateServiceLinkedRole
+              - iam:GetServerCertificate
+              - iam:ListServerCertificates
+            Resource: "*"
+          - Effect: Allow
+            Action:
+              - cognito-idp:DescribeUserPoolClient
+            Resource: "*"
+          - Effect: Allow
+            Action:
+              - waf-regional:GetWebACLForResource
+              - waf-regional:GetWebACL
+              - waf-regional:AssociateWebACL
+              - waf-regional:DisassociateWebACL
+            Resource: "*"
+          - Effect: Allow
+            Action:
+              - tag:GetResources
+              - tag:TagResources
+            Resource: "*"
+          - Effect: Allow
+            Action:
+              - waf:GetWebACL
+            Resource: "*"
+      Roles:
+        - !Ref K8sWorkerNodeRole
+  K8sWorkerNodeInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: "/"
+      Roles:
+        - !Ref K8sWorkerNodeRole
+  MasterNode:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId:
+        Fn::FindInMap:
+          - Region2Image
+          - Ref: AWS::Region
+          - AMI
+      InstanceType: t2.medium
+      BlockDeviceMappings:
+        - DeviceName: "/dev/sda1"
+          Ebs:
+            DeleteOnTermination: "true"
+      KeyName:
+        Ref: KeyPair
+      NetworkInterfaces:
+        - DeviceIndex: 0
+          SubnetId:
+            Ref: MainSubnet
+          PrivateIpAddresses:
+            - PrivateIpAddress: 172.25.1.5
+              Primary: 'true'
+          GroupSet:
+            - Ref: MasterNodeSG
+      UserData:
+        Fn::Base64:
+          Fn::Sub:
+            - |
+              #!/bin/bash -xe
+              yum -y install httpd php mod_ssl openssl jq
+              echo export BUCKET_URI="https://s3-us-west-2.amazonaws.com/tungsten-fabric-sandbox" >> /etc/environment
+              echo export AWS_ACCESS_KEY_ID=${IAMUserKey} >> /etc/environment
+              echo export AWS_SECRET_ACCESS_KEY=${IAMUserKey.SecretAccessKey} >> /etc/environment
+              echo export AWS_DEFAULT_REGION=${AWS::Region} >> /etc/environment
+              echo export AWS_STACK_NAME=${AWS::StackName} >> /etc/environment
+              echo export AWS_INSTANCETYPE=${InstanceType} >> /etc/environment
+              echo export AWS_USERKEY=${KeyPair} >> /etc/environment
+              echo export BUILD=${Build} >> /etc/environment
+              echo export AWS_MP=${MN} >> /etc/environment
+              echo export AWS_WP=${WN} >> /etc/environment
+              source /etc/environment
+              #curl "$BUCKET_URI"/setup_site.sh -o /tmp/setup_site.sh
+              curl "https://raw.githubusercontent.com/TheAshwanik/tungsten_sandbox/main/setup_site.sh" -o /tmp/setup_site.sh
+              chmod +x /tmp/setup_site.sh
+              /tmp/setup_site.sh ${Password}
+            - {
+              MN: !GetAtt K8sMasterNodeInstanceProfile.Arn,
+              WN: !GetAtt K8sWorkerNodeInstanceProfile.Arn
+            }
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-master-node
+Outputs:
+  MasterNodeURL:
+    Description: URL for Master node of Sandbox (use user name 'admin' to log in)
+    Value:
+      Fn::Join:
+        - ''
+        - - https://
+          - Fn::GetAtt:
+              - MasterNode
+              - PublicDnsName
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "Required parameters"
+        Parameters:
+          - InstanceType
+          - Password
+          - Build
+          - KeyPair
+
