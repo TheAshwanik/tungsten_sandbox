@@ -46,12 +46,10 @@
     path: /tmp/dashboard_cert
     state: absent
 
-- name: Waiting for the deployment to be ready.
+- name: Waiting for the 180 seconds for deployment to be ready again.
   wait_for:
-    host: "{{ dashboard_hostname }}"
-    port: 8443
-    timeout: 300
-    msg: "Application was not available after 5 minutes. Something has probably gone wrong."
+    timeout: 180
+    msg: "Application was not available after 3 minutes. Something has probably gone wrong."
 
 - name: look for a privileged token for full k8s dashboard access
   shell: kubectl -n kube-system get secret | grep namespace-controller-token | awk '{print $1}'
