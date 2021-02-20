@@ -49,7 +49,7 @@
 - name: Waiting for the 180 seconds for deployment to be ready again.
   wait_for:
     timeout: 180
-    msg: "Application was not available after 3 minutes. Something has probably gone wrong."
+  delegate_to: localhost
 
 - name: look for a privileged token for full k8s dashboard access
   shell: kubectl -n kube-system get secret | grep namespace-controller-token | awk '{print $1}'
