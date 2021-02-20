@@ -31,7 +31,7 @@
 
 - name: Removing the existing certificates Secret for the Dashboard.
   become: yes
-  shell: kubectl delete secret -n kube-system -dashboard kubernetes-dashboard-certs
+  shell: kubectl delete secret -n kube-system kubernetes-dashboard-certs
 
 - name: Creating a Secret to hold the Certificates.
   become: yes
