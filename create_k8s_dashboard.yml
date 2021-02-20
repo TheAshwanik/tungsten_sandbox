@@ -35,11 +35,11 @@
 
 - name: Creating a Secret to hold the Certificates.
   become: yes
-  shell: kubectl create secret generic kubernetes-dashboard-certs --from-file=/tmp/dashboard_cert -n kubernetes-dashboard
+  shell: kubectl create secret generic kubernetes-dashboard-certs --from-file=/tmp/dashboard_cert -n kube-system
 
 - name: Deleting the existing Dashboard pod to reload the certificate.
   become: yes
-  shell: kubectl delete pod -n kubernetes-dashboard -l k8s-app=kubernetes-dashboard
+  shell: kubectl delete pod -n kube-system -l k8s-app=kubernetes-dashboard
 
 - name: Deleting the temporary Dashboard Certs directory.
   file:
