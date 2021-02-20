@@ -160,7 +160,8 @@ done
 
 aws ec2 create-tags --resources ${K8S_WORKER_INSTANCES_ID[@]} $AWS_SECURITY_GROUP_ID $K8S_MASTER_INSTANCE_ID --tags Key=KubernetesCluster,Value=$AWS_STACK_NAME Key=kubernetes.io/cluster/$AWS_STACK_NAME,Value=owned
 
-
+echo "$(date +"%T %Z"): 6.0/7 Copying create_k8s_dashboard.yml ... " >> $status_log
+curl -s "https://raw.githubusercontent.com/TheAshwanik/tungsten_sandbox/main/create_k8s_dashboard.yml" -o playbooks/roles/k8s/tasks/create_k8s_dashboard.yml
 
 echo "$(date +"%T %Z"): 6/7 Install Kubernetes ... " >> $status_log
 ansible-playbook -i inventory/ -e orchestrator=kubernetes -e k8s_clustername=$AWS_STACK_NAME playbooks/install_k8s.yml
