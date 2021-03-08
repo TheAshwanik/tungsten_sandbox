@@ -98,6 +98,8 @@ sudo chown centos /opt/sandbox/scripts/environment
 sudo echo "CONTROLLER=${K8S_MASTER_PR_IP}" > /opt/sandbox/scripts/environment
 ## start patch contrail-ansible-deployer 
 cp /tmp/sandbox/templates/k8s-master-init.yaml.j2 /home/centos/contrail-ansible-deployer/playbooks/roles/k8s/templates
+curl -s https://raw.githubusercontent.com/TheAshwanik/tungsten_sandbox/main/RedHat.yml -o /tmp/modified_RedHat.yml
+mv /tmp/modified_RedHat.yml /home/centos/contrail-ansible-deployer/playbooks/roles/k8s/tasks/RedHat.yml
 pushd /home/centos/contrail-ansible-deployer/playbooks/roles/k8s/tasks/
 awk -v qt="'" '
 /- name: enable kubelet service/ {
