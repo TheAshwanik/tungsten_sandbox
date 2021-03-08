@@ -10,7 +10,11 @@
     gpgcheck: yes
   when: k8s_package_version is defined
 
+- name: disable all repo
+  command: "yum -q makecache -y --disablerepo='*'"
+  when: k8s_package_version is defined
+  
 # using this to avoid issue https://github.com/ansible/ansible/issues/20711
 - name: make cache to import gpg keys
-  command: "yum -q makecache -y --disablerepo='*' && yum -q makecache -y --disablerepo='*' --enablerepo='Kubernetes'"
+  command: "yum -q makecache -y --disablerepo='*' --enablerepo='Kubernetes'"
   when: k8s_package_version is defined
