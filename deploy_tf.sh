@@ -201,12 +201,12 @@ echo $K8S_MASTER > /var/www/html/sandbox/dns
 echo 1 > /var/www/html/sandbox/stage
 echo "$(date +"%T %Z"): Deployment is completed" >> $status_log
 
-if [[ $(echo -n $AWS_USERKEY | md5sum - | awk '{print $1}') == "dd871b217a44efe5ecc1a685fb43d736" ]] || [[ $(echo -n $AWS_USERKEY | md5sum - | awk '{print $1}') == "d2c3e6f7d068b11a7967d6301e4819b2" ]]
-  then
-    echo "test install" 
-  else
-    curl -s "$BUCKET_URI"/successful-installation.htm
-    curl -H "X-custom: TF-sandbox" http://54.70.115.163/successful-installation.htm
-fi
+#if [[ $(echo -n $AWS_USERKEY | md5sum - | awk '{print $1}') == "dd871b217a44efe5ecc1a685fb43d736" ]] || [[ $(echo -n $AWS_USERKEY | md5sum - | awk '{print $1}') == "d2c3e6f7d068b11a7967d6301e4819b2" ]]
+#  then
+#    echo "test install" 
+#  else
+#    curl -s "$BUCKET_URI"/successful-installation.htm
+#    curl -H "X-custom: TF-sandbox" http://54.70.115.163/successful-installation.htm
+#fi
 
 exit
