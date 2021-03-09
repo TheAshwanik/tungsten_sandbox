@@ -96,10 +96,14 @@ AWS_SECURITY_GROUP_ID=$(aws ec2 describe-security-groups --filters "Name=tag-val
 sudo cp /home/centos/.ssh/id_rsa /opt/sandbox/scripts/ && sudo chown apache /opt/sandbox/scripts/id_rsa
 sudo chown centos /opt/sandbox/scripts/environment
 sudo echo "CONTROLLER=${K8S_MASTER_PR_IP}" > /opt/sandbox/scripts/environment
+
 ## start patch contrail-ansible-deployer 
 cp /tmp/sandbox/templates/k8s-master-init.yaml.j2 /home/centos/contrail-ansible-deployer/playbooks/roles/k8s/templates
-curl -s https://raw.githubusercontent.com/TheAshwanik/tungsten_sandbox/main/RedHat.yml -o /tmp/modified_RedHat.yml
+curl -s https://raw.githubusercontent.com/TheAshwanik/tungsten_sandbox/main/contrail-ansible-deployer/playbooks/roles/k8s/tasks/RedHat.yml -o /tmp/modified_RedHat.yml
 mv /tmp/modified_RedHat.yml /home/centos/contrail-ansible-deployer/playbooks/roles/k8s/tasks/RedHat.yml
+curl -s https://raw.githubusercontent.com/TheAshwanik/tungsten_sandbox/main/contrail-ansible-deployer/playbooks/roles/k8s/tasks/main.yml -o /tmp/modified_main.yml
+mv /tmp/modified_RedHat.yml /home/centos/contrail-ansible-deployer/playbooks/roles/k8s/tasks/main.yml
+
 pushd /home/centos/contrail-ansible-deployer/playbooks/roles/k8s/tasks/
 awk -v qt="'" '
 /- name: enable kubelet service/ {
