@@ -14,14 +14,3 @@
 #- name: make cache to import gpg keys
 #  command: "yum -q makecache -y --disablerepo='*' --enablerepo='Kubernetes'"
 #  when: k8s_package_version is defined
-  
-- name: import gpg key
-  rpm_key:
-    key: "https://packages.cloud.google.com/yum/doc/yum-key.gpg"
-    state: present
-  register: import_key
-  when: k8s_package_version is defined
-                                                                                                       
-- name: Make cache
-  command: "yum -q makecache -y --disablerepo='*' --enablerepo='Kubernetes'"
-  when: import_key.changed
