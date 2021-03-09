@@ -9,7 +9,7 @@
     repo_gpgcheck: yes
     gpgcheck: yes
     enabled: yes
-    exclude: kubelet,kubeadm,kubectl
+    #exclude: kubelet,kubeadm,kubectl
   when: k8s_package_version is defined
 
 # Set SELinux in permissive mode (effectively disabling it)
