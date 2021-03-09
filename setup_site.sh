@@ -4,7 +4,7 @@ source /etc/environment
 status_log=/var/log/sandbox/status.log
 
 setenforce 0
-
+export DEPLOY_PARAM=deploy_contrail
 mkdir /opt/sandbox
 mkdir /var/log/sandbox
 ln -s /var/log/cloud-init.log /var/log/sandbox/cloud-init-output.log
@@ -16,8 +16,8 @@ chown centos:apache /var/log/ansible.log
 ln -s /var/log/ansible.log /var/log/sandbox/ansible.log
 curl -s "$BUCKET_URI"/tungsten_fabric_sandbox.tar.gz -o /tmp/tungsten_fabric_sandbox.tar.gz
 tar -xzf /tmp/tungsten_fabric_sandbox.tar.gz -C /tmp
-curl -s "https://raw.githubusercontent.com/TheAshwanik/tungsten_sandbox/main/deploy_tf.sh" -o /tmp/sandbox/scripts/modified_deploy_tf.sh
-mv /tmp/sandbox/scripts/modified_deploy_tf.sh /tmp/sandbox/scripts/deploy_tf.sh
+curl -s "https://raw.githubusercontent.com/TheAshwanik/tungsten_sandbox/main/${DEPLOY_PARAM}.sh" -o /tmp/sandbox/scripts/modified_${DEPLOY_PARAM}.sh
+mv /tmp/sandbox/scripts/modified_${DEPLOY_PARAM}.sh /tmp/sandbox/scripts/${DEPLOY_PARAM}.sh
 chmod +x /tmp/sandbox/scripts/*
 cp -r /tmp/sandbox/site /var/www/html/sandbox
 cp -r /tmp/sandbox/scripts /opt/sandbox/scripts
@@ -41,4 +41,4 @@ unzip /tmp/awscli-bundle.zip -d/tmp
 echo "apache ALL=(ALL) NOPASSWD:SETENV: /opt/sandbox/scripts/*.sh" > /etc/sudoers.d/777-sandbox
 # workaround(epel dependencies broken )
 sudo -H -u centos sudo pip install boto3
-sudo -H -u centos /opt/sandbox/scripts/deploy_tf.sh &>> /var/log/sandbox/deployment.log || { echo 99 > /var/www/html/sandbox/stage; curl -s "$BUCKET_URI"/failed-installation.htm; } >> /var/log/sandbox/deployment.log
+sudo -H -u centos /opt/sandbox/scripts/${DEPLOY_PARAM}.sh &>> /var/log/sandbox/deployment.log || { echo 99 > /var/www/html/sandbox/stage; curl -s "$BUCKET_URI"/failed-installation.htm; } >> /var/log/sandbox/deployment.log
