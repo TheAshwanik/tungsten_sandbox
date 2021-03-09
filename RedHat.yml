@@ -13,10 +13,16 @@
   when: k8s_package_version is defined
 
 # Set SELinux in permissive mode (effectively disabling it)
-- name: Set SELinux in permissive mode
-  command: "setenforce 0 && sed -i 's/^SELINUX=enforcing$/SELINUX=permissive/' /etc/selinux/config"
+- name: Set setenforce 0
+  command: "setenforce 0"
   when: k8s_package_version is defined
 
+# Set SELinux in permissive mode (effectively disabling it)
+- name: Set SELinux in permissive mode
+  command: "sed -i 's/^SELINUX=enforcing$/SELINUX=permissive/' /etc/selinux/config"
+  when: k8s_package_version is defined
+  
+  
 # using this to avoid issue https://github.com/ansible/ansible/issues/20711
 #- name: make cache to import gpg keys
 #  command: "yum -q makecache -y --disablerepo='*' --enablerepo='Kubernetes'"
