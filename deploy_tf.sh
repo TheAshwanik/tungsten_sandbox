@@ -23,16 +23,12 @@ aws --region $AWS_DEFAULT_REGION ec2 import-key-pair --key-name $AWS_KEYS --publ
 
 
 echo "$(date +"%T %Z"): 3/7 Download the repository ... " >> $status_log
-git clone https://github.com/Juniper/contrail-ansible-deployer
 
-cd contrail-ansible-deployer
-if [[ $BUILD == "stable" ]]
-  then
-    git checkout $REPOHASH
-fi
+git clone https://github.com/tungstenfabric/tf-ansible-deployer
+cd tf-ansible-deployer
 
 set +x
-config=/home/centos/contrail-ansible-deployer/config/instances.yaml
+config=/home/centos/tf-ansible-deployer/config/instances.yaml
 templ=$(cat /tmp/sandbox/templates/instances.tpl)
 content=$(eval "echo \"$templ\"")
 echo "$content" > $config
@@ -97,70 +93,6 @@ sudo cp /home/centos/.ssh/id_rsa /opt/sandbox/scripts/ && sudo chown apache /opt
 sudo chown centos /opt/sandbox/scripts/environment
 sudo echo "CONTROLLER=${K8S_MASTER_PR_IP}" > /opt/sandbox/scripts/environment
 
-## start patch contrail-ansible-deployer 
-echo "$(date +"%T %Z"): 5.1/7 start patch contrail-ansible-deployer - RedHat.yml and main.yml ... " >> $status_log
-
-cp /tmp/sandbox/templates/k8s-master-init.yaml.j2 /home/centos/contrail-ansible-deployer/playbooks/roles/k8s/templates
-curl -s "https://raw.githubusercontent.com/TheAshwanik/tungsten_sandbox/main/contrail-ansible-deployer/playbooks/roles/k8s/tasks/RedHat.yml" -o playbooks/roles/k8s/tasks/RedHat.yml
-#mv /tmp/modified_RedHat.yml /home/centos/contrail-ansible-deployer/playbooks/roles/k8s/tasks/RedHat.yml
-curl -s "https://raw.githubusercontent.com/TheAshwanik/tungsten_sandbox/main/contrail-ansible-deployer/playbooks/roles/k8s/tasks/main.yml" -o playbooks/roles/k8s/tasks/main.yml
-#mv /tmp/modified_RedHat.yml /home/centos/contrail-ansible-deployer/playbooks/roles/k8s/tasks/main.yml
-
-echo "$(date +"%T %Z"): 5.2/7 Still patching contrail-ansible-deployer - configure_k8s_master_node.yml ... " >> $status_log
-
-pushd /home/centos/contrail-ansible-deployer/playbooks/roles/k8s/tasks/
-awk -v qt="'" '
-/- name: enable kubelet service/ {
-    print "- name: set cloud provider"
-    print "  lineinfile:"
-    print "      path: /etc/systemd/system/kubelet.service.d/10-kubeadm.conf"
-    print "      regexp: "qt"^Environment=\"KUBELET_KUBECONFIG_ARGS="qt""
-    print "      line: "qt"Environment=\"KUBELET_KUBECONFIG_ARGS=--bootstrap-kubeconfig=/etc/kubernetes/bootstrap-kubelet.conf --kubeconfig=/etc/kubernetes/kubelet.conf --cloud-provider=aws\""qt""
-    print ""
-}
-{ print }
-' configure_k8s_master_node.yml > tmp && mv tmp configure_k8s_master_node.yml
-
-awk '
-/^- name: initialize k8s master with listen ip/ {
-    print "- name: create k8 master init yaml"
-    print "  template:"
-    print "    src: k8s-master-init.yaml.j2"
-    print "    dest: /tmp/k8s-master-init.yaml"
-    print ""
-}
-{ print }
-' configure_k8s_master_node.yml > tmp && mv tmp configure_k8s_master_node.yml
-
-sed -ri 's/\|grep "forever"//g' configure_k8s_master_node.yml
-
-awk '
-{gsub(/kubeadm init --token-ttl 0 --kubernetes-version v{{ k8s_version }} --apiserver-advertise-address {{ listen_ip }} --pod-network-cidr {{ kube_pod_subnet }}/,"kubeadm init --ignore-preflight-errors=cri --config /tmp/k8s-master-init.yaml");}1
-' configure_k8s_master_node.yml > tmp && mv tmp configure_k8s_master_node.yml
-
-awk '
-{gsub(/kubeadm init --token-ttl 0 --kubernetes-version v{{ k8s_version }} --pod-network-cidr {{ kube_pod_subnet }}/,"kubeadm init --ignore-preflight-errors=cri --config /tmp/k8s-master-init.yaml");}1
-' configure_k8s_master_node.yml > tmp && mv tmp configure_k8s_master_node.yml
-
-awk -v qt="'" '
-/- name: enable kubelet service/ {
-    print "- name: set cloud provider"
-    print "  lineinfile:"
-    print "    path: /etc/systemd/system/kubelet.service.d/10-kubeadm.conf"
-    print "    regexp: "qt"^Environment=\"KUBELET_KUBECONFIG_ARGS"qt""
-    print "    line: "qt"Environment=\"KUBELET_KUBECONFIG_ARGS=--bootstrap-kubeconfig=/etc/kubernetes/bootstrap-kubelet.conf --kubeconfig=/etc/kubernetes/kubelet.conf --cloud-provider=aws\""qt""
-    print ""
-}
-{ print }
-' configure_k8s_join_node.yml > tmp && mv tmp configure_k8s_join_node.yml
-
-awk '
-{gsub(/kubeadm join --token {{ hostvars\[k8s_master_name\].mastertoken }} --discovery-token-unsafe-skip-ca-verification {{ k8s_master_ip }}:6443/,
-    "kubeadm join --ignore-preflight-errors=cri --token {{ hostvars\[k8s_master_name\].mastertoken }} --discovery-token-unsafe-skip-ca-verification {{ k8s_master_ip }}:6443")
-}1' configure_k8s_join_node.yml > tmp && mv tmp configure_k8s_join_node.yml
-popd
-
-## end patch contrail-ansible-deployer
 
 aws ec2 associate-iam-instance-profile --instance-id $K8S_MASTER_INSTANCE_ID --iam-instance-profile Name="$K8S_MASTER_NODE_PROFILE"
 for i in "${K8S_WORKER_INSTANCES_ID[@]}"
@@ -171,7 +103,7 @@ done
 aws ec2 create-tags --resources ${K8S_WORKER_INSTANCES_ID[@]} $AWS_SECURITY_GROUP_ID $K8S_MASTER_INSTANCE_ID --tags Key=KubernetesCluster,Value=$AWS_STACK_NAME Key=kubernetes.io/cluster/$AWS_STACK_NAME,Value=owned
 
 echo "$(date +"%T %Z"): 6.0/7 Copying create_k8s_dashboard.yml ... " >> $status_log
-curl -s "https://raw.githubusercontent.com/TheAshwanik/tungsten_sandbox/main/contrail-ansible-deployer/playbooks/roles/k8s/tasks/create_k8s_dashboard.yml" -o playbooks/roles/k8s/tasks/create_k8s_dashboard.yml
+curl -s "https://raw.githubusercontent.com/TheAshwanik/tungsten_sandbox/main/tf-ansible-deployer/playbooks/roles/k8s/tasks/create_k8s_dashboard.yml" -o playbooks/roles/k8s/tasks/create_k8s_dashboard.yml
 
 echo "$(date +"%T %Z"): 6/7 Install Kubernetes ... " >> $status_log
 ansible-playbook -i inventory/ -e orchestrator=kubernetes -e k8s_clustername=$AWS_STACK_NAME playbooks/install_k8s.yml
