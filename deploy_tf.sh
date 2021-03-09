@@ -69,6 +69,10 @@ for i in "${K8S_WORKERS[@]}"
     "curl -s "$BUCKET_URI"/crictl-v1.11.1-linux-amd64.tar.gz -o /tmp/crictl-v1.11.1-linux-amd64.tar.gz && sudo tar zxvf /tmp/crictl-v1.11.1-linux-amd64.tar.gz -C /usr/bin && echo export COMPOSE_HTTP_TIMEOUT=300 | sudo tee /etc/profile.d/compose.sh"
 done
 
+## start patch role pip
+echo "$(date +"%T %Z"): 4.1/7 Pip role ... " >> $status_log
+curl -s "https://raw.githubusercontent.com/TheAshwanik/tungsten_sandbox/main/tf-ansible-deployer/playbooks/roles/pip/tasks/main.yml" -o playbooks/roles/pip/tasks/main.yml
+
 
 echo "$(date +"%T %Z"): 5/7 Configure instances ... " >> $status_log
 
