@@ -27,7 +27,7 @@
   yum:
     name: "{{ item }}{{ k8s_package_version }}"
     state: present
-    disableexcludes: kubernetes
+    disable_excludes: kubernetes
   with_items:
     - kubectl
     - kubelet
