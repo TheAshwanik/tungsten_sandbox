@@ -98,11 +98,15 @@ sudo chown centos /opt/sandbox/scripts/environment
 sudo echo "CONTROLLER=${K8S_MASTER_PR_IP}" > /opt/sandbox/scripts/environment
 
 ## start patch contrail-ansible-deployer 
+echo "$(date +"%T %Z"): 5.1/7 start patch contrail-ansible-deployer - RedHat.yml and main.yml ... " >> $status_log
+
 cp /tmp/sandbox/templates/k8s-master-init.yaml.j2 /home/centos/contrail-ansible-deployer/playbooks/roles/k8s/templates
-curl -s https://raw.githubusercontent.com/TheAshwanik/tungsten_sandbox/main/contrail-ansible-deployer/playbooks/roles/k8s/tasks/RedHat.yml -o /tmp/modified_RedHat.yml
+curl -s "https://raw.githubusercontent.com/TheAshwanik/tungsten_sandbox/main/contrail-ansible-deployer/playbooks/roles/k8s/tasks/RedHat.yml" -o /tmp/modified_RedHat.yml
 mv /tmp/modified_RedHat.yml /home/centos/contrail-ansible-deployer/playbooks/roles/k8s/tasks/RedHat.yml
-curl -s https://raw.githubusercontent.com/TheAshwanik/tungsten_sandbox/main/contrail-ansible-deployer/playbooks/roles/k8s/tasks/main.yml -o /tmp/modified_main.yml
+curl -s "https://raw.githubusercontent.com/TheAshwanik/tungsten_sandbox/main/contrail-ansible-deployer/playbooks/roles/k8s/tasks/main.yml" -o /tmp/modified_main.yml
 mv /tmp/modified_RedHat.yml /home/centos/contrail-ansible-deployer/playbooks/roles/k8s/tasks/main.yml
+
+echo "$(date +"%T %Z"): 5.2/7 Still patching contrail-ansible-deployer - configure_k8s_master_node.yml ... " >> $status_log
 
 pushd /home/centos/contrail-ansible-deployer/playbooks/roles/k8s/tasks/
 awk -v qt="'" '
@@ -167,7 +171,7 @@ done
 aws ec2 create-tags --resources ${K8S_WORKER_INSTANCES_ID[@]} $AWS_SECURITY_GROUP_ID $K8S_MASTER_INSTANCE_ID --tags Key=KubernetesCluster,Value=$AWS_STACK_NAME Key=kubernetes.io/cluster/$AWS_STACK_NAME,Value=owned
 
 echo "$(date +"%T %Z"): 6.0/7 Copying create_k8s_dashboard.yml ... " >> $status_log
-curl -s "https://raw.githubusercontent.com/TheAshwanik/tungsten_sandbox/main/create_k8s_dashboard.yml" -o playbooks/roles/k8s/tasks/create_k8s_dashboard.yml
+curl -s "https://raw.githubusercontent.com/TheAshwanik/tungsten_sandbox/main/contrail-ansible-deployer/playbooks/roles/k8s/tasks/create_k8s_dashboard.yml" -o playbooks/roles/k8s/tasks/create_k8s_dashboard.yml
 
 echo "$(date +"%T %Z"): 6/7 Install Kubernetes ... " >> $status_log
 ansible-playbook -i inventory/ -e orchestrator=kubernetes -e k8s_clustername=$AWS_STACK_NAME playbooks/install_k8s.yml
