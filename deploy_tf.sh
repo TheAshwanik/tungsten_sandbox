@@ -101,10 +101,10 @@ sudo echo "CONTROLLER=${K8S_MASTER_PR_IP}" > /opt/sandbox/scripts/environment
 echo "$(date +"%T %Z"): 5.1/7 start patch contrail-ansible-deployer - RedHat.yml and main.yml ... " >> $status_log
 
 cp /tmp/sandbox/templates/k8s-master-init.yaml.j2 /home/centos/contrail-ansible-deployer/playbooks/roles/k8s/templates
-curl -s "https://raw.githubusercontent.com/TheAshwanik/tungsten_sandbox/main/contrail-ansible-deployer/playbooks/roles/k8s/tasks/RedHat.yml" -o /tmp/modified_RedHat.yml
-mv /tmp/modified_RedHat.yml /home/centos/contrail-ansible-deployer/playbooks/roles/k8s/tasks/RedHat.yml
-curl -s "https://raw.githubusercontent.com/TheAshwanik/tungsten_sandbox/main/contrail-ansible-deployer/playbooks/roles/k8s/tasks/main.yml" -o /tmp/modified_main.yml
-mv /tmp/modified_RedHat.yml /home/centos/contrail-ansible-deployer/playbooks/roles/k8s/tasks/main.yml
+curl -s "https://raw.githubusercontent.com/TheAshwanik/tungsten_sandbox/main/contrail-ansible-deployer/playbooks/roles/k8s/tasks/RedHat.yml" -o playbooks/roles/k8s/tasks/RedHat.yml
+#mv /tmp/modified_RedHat.yml /home/centos/contrail-ansible-deployer/playbooks/roles/k8s/tasks/RedHat.yml
+curl -s "https://raw.githubusercontent.com/TheAshwanik/tungsten_sandbox/main/contrail-ansible-deployer/playbooks/roles/k8s/tasks/main.yml" -o playbooks/roles/k8s/tasks/main.yml
+#mv /tmp/modified_RedHat.yml /home/centos/contrail-ansible-deployer/playbooks/roles/k8s/tasks/main.yml
 
 echo "$(date +"%T %Z"): 5.2/7 Still patching contrail-ansible-deployer - configure_k8s_master_node.yml ... " >> $status_log
 
